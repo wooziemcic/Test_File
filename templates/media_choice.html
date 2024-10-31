@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container text-center mt-5">
+    <h2 class="mb-4">Choose Your Practice Mode</h2>
+
+    <div class="practice-options">
+        <a href="{{ url_for('audio_practice', interview_id=interview_id) }}" class="practice-card">
+            <img src="{{ url_for('static', filename='audio.png') }}" alt="Audio Practice">
+            <div class="practice-label">
+                <p>Audio Practice</p>
+                <i class="fas fa-info-circle info-icon" 
+                   data-toggle="tooltip" data-placement="top" 
+                   title="Audio processing is faster compared to video."></i>
+            </div>
+        </a>
+
+        <a href="{{ url_for('questions', interview_id=interview_id) }}" class="practice-card">
+            <img src="{{ url_for('static', filename='video.png') }}" alt="Video Practice">
+            <div class="practice-label">
+                <p>Video Practice</p>
+                <i class="fas fa-info-circle info-icon" 
+                   data-toggle="tooltip" data-placement="top" 
+                   title="Video processing provides more insights but takes longer."></i>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+    /* Container for practice options */
+    .practice-options {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+    }
+
+    /* Practice card styling */
+    .practice-card {
+        text-decoration: none;
+        color: inherit;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+        width: 160px;
+        text-align: center;
+    }
+
+    /* Image in the practice card */
+    .practice-card img {
+        max-width: 80px;
+        margin-bottom: 15px;
+    }
+
+    /* Label container with text and icon */
+    .practice-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    /* Text styling */
+    .practice-label p {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    /* Info icon styling */
+    .info-icon {
+        font-size: 16px;
+        color: #007bff;
+        cursor: pointer;
+    }
+
+    /* Hover effect for the cards */
+    .practice-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+</style>
+
+<!-- Initialize Bootstrap tooltips -->
+<script>
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip();
+    });
+</script>
+{% endblock %}
