@@ -21,7 +21,21 @@ import numpy as np
 import cv2
 from deepface import DeepFace
 import logging
+import joblib
+from sentence_transformers import SentenceTransformer
+import re
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
+# Load the trained logistic regression model
+model = joblib.load('C:/Users/aayus/Documents/job_hiring_website/Resume_Checker/trained_model.pkl')
+
+# Initialize the SentenceTransformer model for embedding extraction
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Load environment variables
 load_dotenv(override=True)
@@ -435,10 +449,66 @@ def extract_text_from_pdf(pdf_file):
     pdf.close()
     return text
 
+# Define text cleaning function
+def clean_text(text):
+    text = re.sub(r'<.*?>', '', text)           # Remove HTML tags
+    text = re.sub(r'[^a-zA-Z\s]', '', text)      # Remove special characters and digits
+    text = text.lower()                          # Convert to lowercase
+    text = re.sub(r'\s+', ' ', text).strip()     # Remove extra whitespaces
+    return text
+
+def extract_dynamic_skills(text, top_n=10):
+    """Extracts top key phrases from text using TF-IDF to identify potential skills."""
+    doc = nlp(text)
+    phrases = [chunk.text for chunk in doc.noun_chunks if len(chunk) > 1]  # Avoid single generic words
+    vectorizer = TfidfVectorizer().fit(phrases)
+    tfidf_scores = vectorizer.transform(phrases).toarray().sum(axis=0)
+    sorted_phrases = [phrase for phrase, score in sorted(zip(vectorizer.get_feature_names_out(), tfidf_scores), 
+                                                          key=lambda x: x[1], reverse=True)]
+    return set(sorted_phrases[:top_n])
+
+def calculate_skill_match(job_skills, resume_skills):
+    """Calculates skill match score based on semantic similarity between job and resume skills."""
+    job_embeddings = [embedding_model.encode(skill) for skill in job_skills]
+    resume_embeddings = [embedding_model.encode(skill) for skill in resume_skills]
+    
+    # Calculate similarity matrix between job and resume skills
+    similarity_matrix = cosine_similarity(job_embeddings, resume_embeddings)
+    
+    # Count number of matches with similarity above threshold (0.6)
+    match_count = np.sum(similarity_matrix > 0.6)
+    
+    # Return ratio of matched skills to total job skills
+    return match_count / len(job_skills) if job_skills else 0
+
 def check_resume_fit(job_description, resume_text):
-    job_doc = nlp(job_description)
-    resume_doc = nlp(resume_text)
-    return job_doc.similarity(resume_doc) >= 0.8
+    # Preprocess job description and resume
+    job_description_clean = clean_text(job_description)
+    resume_text_clean = clean_text(resume_text)
+
+    # Calculate similarity score between entire job description and resume
+    job_embedding = embedding_model.encode(job_description_clean)
+    resume_embedding = embedding_model.encode(resume_text_clean)
+    similarity_score = cosine_similarity(job_embedding.reshape(1, -1), resume_embedding.reshape(1, -1)).flatten()[0]
+
+    # Log similarity score
+    logger.debug(f"Similarity score between job description and resume: {similarity_score}")
+
+    # Extract dynamic skills from job description and resume
+    job_skills = extract_dynamic_skills(job_description)
+    resume_skills = extract_dynamic_skills(resume_text)
+
+    # Calculate skill match score and log details
+    skill_match_score = calculate_skill_match(job_skills, resume_skills)
+    logger.debug(f"Skill match score: {skill_match_score}")
+
+    # Final weighted scoring
+    total_score = (1.0 * similarity_score + 0.0 * skill_match_score)
+    logger.debug(f"Total score (combined similarity and skill match): {total_score}")
+
+    # Eligibility threshold based on combined scoring
+    return total_score >= 0.40
+
 
 def generate_questions(description):
     questions = []
